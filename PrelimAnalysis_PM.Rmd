@@ -32,7 +32,7 @@ df <- df[which(!is.na(df$`PM MASS (μg/m3)`)),] #removing N/As
 
 ```
 
-#### An inital look at the data...
+##### An inital look at the data...
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 library("ggplot2")
@@ -149,25 +149,34 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
 
-#### Linear Regression Models 
-##### **log values analyzed first**
+##### Linear Regression Models 
+###### **using the log transformations**
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 # linear regression is how they effect each other? 
 
-model1 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Average)) # linear regression 
-
+model1 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Average))  
 summary(model1)
 
-model2 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Median)) # linear regression 
-
+model2 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Median)) 
 summary(model2)
+
+pm10 <- df %>% filter(df$`PM (PM2.5,PM10)` == "PM10")    
+pm2.5 <- df %>% filter(df$`PM (PM2.5,PM10)` == "PM2.5")
+
+model3 <- lm(log(pm10$`PM MASS (μg/m3)`) ~ log(pm10$Average))
+summary(model3)
+
+model4 <- lm(log(pm2.5$`PM MASS (μg/m3)`) ~ log(pm2.5$Average))
+summary(model4)
+
+model5 <- glm(`PM MASS (μg/m3)` ~   ) 
+
 
 ```
 
-#### Are there any significant differences between average PM10 and PM2.5 from 
-#### the Alphasensor data?
+##### Are there any significant differences between average PM10 and PM2.5 from the Alphasensor data?
 ```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 # create a box plot to compare in pm10 with pm2.5 average
