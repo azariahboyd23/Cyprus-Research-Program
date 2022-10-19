@@ -1,0 +1,191 @@
+---
+title: "Preliminary Analysis"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+library("readr")
+library("dplyr")
+library("tidyverse")
+
+
+getwd()
+setwd("~/Desktop/Cyrpus Data Analysis")
+data <- read_csv("~/Desktop/Cyrpus Data Analysis/Clean DataLogs for impactors and Alphasense(cor_Dates+ Match Alphasense)_Updated AM 28-9-22.csv")
+
+data$...39 <- NULL
+
+df <- data %>% select(`PM (PM2.5,PM10)`, Average, Median, 
+                     `PM MASS (μg/m3)`, `Impactor Location (Indoor/Outdoor)`)
+
+#provisionally ignore subjects with missing values for PM 
+df <- df[which(!is.na(df$Median)),] 
+
+df <- df[which(!is.na(df$Average)),] 
+
+#making all values numeric 
+df$`PM MASS (μg/m3)` <- as.numeric(df$`PM MASS (μg/m3)`)
+
+df <- df[which(!is.na(df$`PM MASS (μg/m3)`)),] #removing N/As 
+
+
+```
+
+#### An inital look at the data...
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+library("ggplot2")
+library("ggthemes")
+library("ggrepel")
+
+# initial look at the data 
+hist1 <- df %>% 
+  ggplot(aes(Average, ..density..)) + 
+  geom_histogram(binwidth = 7, color="black", fill="orange") + 
+  xlab("Average (μg/m3) Alphasensor") 
+
+hist2 <- df %>% 
+  ggplot(aes(Median, ..density..)) + 
+  geom_histogram(binwidth = 1, color="black", fill="blue") + 
+  xlab("Median PM (μg/m3) Alphasensor") 
+
+hist3 <- df %>% 
+  ggplot(aes(`PM MASS (μg/m3)`, ..density..)) + 
+  geom_histogram(binwidth = 4, color="black", fill="pink") + 
+  xlab("PM MASS (μg/m3) HI") 
+
+# log transforming the data
+hist4 <- df %>% 
+  ggplot(aes(log(Average), ..density..)) + 
+  geom_histogram(binwidth = 0.25, color="black", fill="orange") + 
+  xlab("Log Average (μg/m3) Alphasenor") 
+
+hist5 <- df %>% 
+  ggplot(aes(log(`PM MASS (μg/m3)`), ..density..)) + 
+  geom_histogram(binwidth = 0.25, color="black", fill="pink") + 
+  xlab("Log of PM MASS (μg/m3) HI") 
+
+hist6 <- df %>% 
+  ggplot(aes(log(Median), ..density..)) + 
+  geom_histogram(binwidth = 0.25, color="black", fill="blue") + 
+  xlab("Log Median PM (μg/m3) Alphasensor") + 
+  xlim(0, 5)
+
+
+library("gridExtra")
+grid.arrange(hist1, hist4, hist2, hist6, hist3, hist5, nrow = 3)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+library(ggpubr)
+library(kableExtra)
+library(knitr)
+
+# Is there a correlation w/ average PM Mass from Harvard and Average from 
+# Alphasensor? Correlation quantifies the strength of the linear relationship.
+
+# R^2 (coefficient of determination) is the proportion of the variance in the  
+# Average that is predicted by PM Mass. In other words, how well does avg. 
+# predict PM Mass? 
+
+
+p1 <- df %>% 
+    ggplot(aes(x = Average, y = `PM MASS (μg/m3)`)) + 
+    geom_point(color="pink", size = 3, alpha=0.5) +  
+    geom_smooth(method=lm, se=TRUE, col="black", size=1) +
+    stat_regline_equation(label.x=40, label.y=90) +
+    stat_cor(aes(label=..rr.label..), label.x=40, label.y=82) +
+    ylab("PM Mass (μg/m3) HI") + 
+    xlim(0, 80) + 
+    ylim(0, 100) + 
+    xlab("Average PM (μg/m3) Alphasensor") +
+    theme_classic() + 
+    theme(legend.position = "none") 
+
+p2 <- df %>% 
+    ggplot(aes(x = log(Average), y = log(`PM MASS (μg/m3)`))) + 
+    geom_point(color="pink", size = 3, alpha=0.5) +  
+    geom_smooth(method=lm, se=TRUE, col="black", size=1) +
+    stat_regline_equation(label.x=4, label.y=8) +
+    stat_cor(aes(label=..rr.label..), label.x=4, label.y=7) +
+    ylab("Log PM Mass (μg/m3) HI") + 
+    xlim(0, 6) + 
+    ylim(0, 10) + 
+    xlab("Log Average PM (μg/m3) Alphasenor") +
+    theme_classic() + 
+    theme(legend.position = "none")
+
+p3 <- df %>% 
+  ggplot(aes(x = Median, y = `PM MASS (μg/m3)`)) + 
+  geom_point(color="green", size = 3, alpha=0.5) +
+  geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
+  stat_regline_equation(label.x=35, label.y=150) +
+  stat_cor(aes(label=..rr.label..), label.x=35, label.y=135) +
+  xlim(0, 50) + 
+  ylim(0, 200) +
+  ylab("PM Mass (μg/m3) HI") + 
+  xlab("Median PM (μg/m3) Alphasensor") +
+  theme_classic() + 
+  theme(legend.position = "none") 
+
+p4 <- df %>% 
+  ggplot(aes(x = log(Median), y = log(`PM MASS (μg/m3)`))) + 
+  geom_point(color="green", size = 3, alpha=0.5) +
+  geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
+  stat_regline_equation(label.x=3, label.y=2) +
+  stat_cor(aes(label=..rr.label..), label.x=3, label.y=1.5) +
+  xlim(0, 5) + 
+  ylim(0, 6) + 
+  ylab("Log PM Mass (μg/m3) HI") + 
+  xlab("Log Median PM (μg/m3) Alphasensor") +
+  theme_classic() + 
+  theme(legend.position = "none") 
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+
+```
+
+
+#### Linear Regression Models 
+##### **log values analyzed first**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+# linear regression is how they effect each other? 
+
+model1 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Average)) # linear regression 
+
+summary(model1)
+
+model2 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Median)) # linear regression 
+
+summary(model2)
+
+```
+
+#### Are there any significant differences between average PM10 and PM2.5 from 
+#### the Alphasensor data?
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+# create a box plot to compare in pm10 with pm2.5 average
+
+ggplot(df, aes(`PM (PM2.5,PM10)`, Average)) +
+      geom_boxplot() + 
+      xlab("particulate matter in micrometers") +
+      ylab("average PM (μg/m3) alphasensor")
+
+ggplot(df, aes(`PM (PM2.5,PM10)`, log(Average))) +
+      geom_boxplot() + 
+      xlab("particulate matter in micrometers") +
+      ylab("log average PM (μg/m3) alphasensor")
+
+t.test(log(Average) ~ `PM (PM2.5,PM10)`, data = df) 
+
+wilcox.test(Average ~ `PM (PM2.5,PM10)`, data = df, alternative = "two.sided")
+
+```
+
+
