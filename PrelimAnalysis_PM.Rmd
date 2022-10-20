@@ -78,14 +78,15 @@ grid.arrange(hist1, hist4, hist2, hist6, hist3, hist5, nrow = 3)
 
 ```
 
+
+#### Correlation with average PM Mass from Harvard Impactor and Averages from Alphasensor?
+
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 library(ggpubr)
 library(kableExtra)
 library(knitr)
-
-# Is there a correlation w/ average PM Mass from Harvard and Average from 
-# Alphasensor? Correlation quantifies the strength of the linear relationship.
 
 # R^2 (coefficient of determination) is the proportion of the variance in the  
 # Average that is predicted by PM Mass. In other words, how well does avg. 
@@ -149,12 +150,12 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
 
-##### Linear Regression Models 
-###### **using the log transformations**
+#### Linear Regression Models 
+##### **using the log transformations**
 
-```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
-
-# linear regression is how they effect each other? 
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+pm10 <- df %>% filter(df$`PM (PM2.5,PM10)` == "PM10")    # creating new dfs for
+pm2.5 <- df %>% filter(df$`PM (PM2.5,PM10)` == "PM2.5")  # PM10 and PM2.5
 
 model1 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Average))  
 summary(model1)
@@ -162,22 +163,17 @@ summary(model1)
 model2 <- lm(log(df$`PM MASS (μg/m3)`) ~ log(df$Median)) 
 summary(model2)
 
-pm10 <- df %>% filter(df$`PM (PM2.5,PM10)` == "PM10")    
-pm2.5 <- df %>% filter(df$`PM (PM2.5,PM10)` == "PM2.5")
-
-model3 <- lm(log(pm10$`PM MASS (μg/m3)`) ~ log(pm10$Average))
+model3 <- lm(log(pm10$`PM MASS (μg/m3)`) ~ log(pm10$Average))  # PM 10 
 summary(model3)
 
-model4 <- lm(log(pm2.5$`PM MASS (μg/m3)`) ~ log(pm2.5$Average))
+model4 <- lm(log(pm2.5$`PM MASS (μg/m3)`) ~ log(pm2.5$Average)) # PM 2.5
 summary(model4)
-
-model5 <- glm(`PM MASS (μg/m3)` ~   ) 
 
 
 ```
 
 ##### Are there any significant differences between average PM10 and PM2.5 from the Alphasensor data?
-```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 # create a box plot to compare in pm10 with pm2.5 average
 
@@ -196,5 +192,3 @@ t.test(log(Average) ~ `PM (PM2.5,PM10)`, data = df)
 wilcox.test(Average ~ `PM (PM2.5,PM10)`, data = df, alternative = "two.sided")
 
 ```
-
-
