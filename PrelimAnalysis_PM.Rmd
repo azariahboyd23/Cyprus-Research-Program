@@ -1,7 +1,4 @@
----
-title: "Preliminary Analysis"
-output: html_document
----
+### Preliminary Analysis
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 
@@ -10,13 +7,15 @@ library("dplyr")
 library("tidyverse")
 
 getwd()
-data <- read_xlsx("/Users/AB/Desktop/Cyprus-Research-Program/Clean DataLogs for impactors and Alphasense(cor_Dates+ Match Alphasense)_Updated AM 28-9-22 (1).xlsx")
+data <- read_xlsx("/Users/AB/Desktop/Cyprus-Research-Program/Clean DataLogs for impactors and Alphasense(cor_Dates+ Match Alphasense)_Updated AM 30-10-22 .xlsx")
+data
 
 # Trimming 
 df <- data %>% select(`PM (PM2.5,PM10)`, Average, Median, 
                      `PM MASS (μg/m3)`, `Impactor Location (Indoor/Outdoor)`,
-                     Flag)
-#provisionally ignore subjects with missing values for PM 
+                     Flag, `INTERVENTION GROUP`, `Dust(D)/ NonDust(ND)`)
+
+#provisionally ignore subjects with missing values 
 df <- df[which(!is.na(df$Median)),] 
 
 df <- df[which(!is.na(df$Average)),] 
@@ -34,10 +33,7 @@ PM10 <- df %>% filter(`PM (PM2.5,PM10)` == "PM10", Flag != "2")
 PM10
 ```
 
-
-
-
-#### An inital look at the data...
+#### The inital look at the data...
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 library("ggplot2")
@@ -79,18 +75,15 @@ grid.arrange(hist1, hist2, hist3, hist4, hist5, hist6, nrow = 3)
 ```
 
 
-
-
 ### Correlation 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-
+library(ggplot2)
 library(ggpubr)
-library(kableExtra)
-library(knitr)
+library(ggrepel)
 
 # R^2 (coefficient of determination) is the proportion of the variance in the  
-# Average that is predicted by PM Mass. In other words, how well does avg. 
+# average that is predicted by PM Mass. In other words, how well does avg. 
 # predict PM Mass? 
 
 p1 <- PM2.5 %>% 
@@ -107,14 +100,12 @@ p1 <- PM2.5 %>%
     theme(legend.position = "none") 
 
 p2 <- PM2.5 %>% 
-    ggplot(aes(x = log(Average), y = log(`PM MASS (μg/m3)`))) + 
+    ggplot(aes(x = log(Average), y = `PM MASS (μg/m3)`)) + 
     geom_point(color="navy", size = 3, alpha=0.5) +  
     geom_smooth(method=lm, se=TRUE, col="black", size=1) +
-    stat_regline_equation(label.x=4, label.y=8) +
-    stat_cor(aes(label=..rr.label..), label.x=4, label.y=7) +
-    ylab("Log PM Mass (μg/m3) HI") + 
-    xlim(0, 6) + 
-    ylim(0, 10) + 
+    stat_regline_equation(label.x=2, label.y=40) +
+    stat_cor(aes(label=..rr.label..), label.x=2, label.y=35) +
+    ylab("PM Mass (μg/m3) HI") + 
     xlab("Log Average PM2.5 (μg/m3) Alphasenor") +
     theme_classic() + 
     theme(legend.position = "none")
@@ -124,7 +115,7 @@ p3 <- PM10 %>%
   geom_point(color="navy", size = 3, alpha=0.5) +
   geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
   stat_regline_equation(label.x=31, label.y=150) +
-  stat_cor(aes(label=..rr.label..), label.x=35, label.y=135) +
+  stat_cor(aes(label=..rr.label..), label.x=31, label.y=130) +
   xlim(0, 50) + 
   ylim(0, 200) +
   ylab("PM Mass (μg/m3) HI") + 
@@ -133,22 +124,18 @@ p3 <- PM10 %>%
   theme(legend.position = "none") 
 
 p4 <- PM10 %>% 
-  ggplot(aes(x = log(Average), y = log(`PM MASS (μg/m3)`))) + 
+  ggplot(aes(x = log(Average), y = `PM MASS (μg/m3)`)) + 
   geom_point(color="navy", size = 3, alpha=0.5) +
   geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
-  stat_regline_equation(label.x=3, label.y=2) +
-  stat_cor(aes(label=..rr.label..), label.x=3, label.y=1.5) +
-  xlim(0, 5) + 
-  ylim(0, 6) + 
-  ylab("Log PM Mass (μg/m3) HI") + 
+  stat_regline_equation(label.x=3, label.y=150) +
+  stat_cor(aes(label=..rr.label..), label.x=3, label.y=135) +
+  ylab("PM Mass (μg/m3) HI") + 
   xlab("Log Average PM10 (μg/m3) Alphasensor") +
   theme_classic() + 
   theme(legend.position = "none") 
 
 grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
-
-
 
 #### Linear Regression Models 
 
@@ -158,6 +145,18 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 model1 <- lm(`PM MASS (μg/m3)` ~ Average, data=PM2.5)  #PM2.5 
 summary(model1)
 ```
+
+##### Relationship between PM2.5 from Alphasenors and PM Mass from Harvard Impactor.
+##### Adjusting for dust and intervention status 
+```{r}
+model2 <- glm(`PM MASS (μg/m3)`~ Average + `INTERVENTION GROUP` + 
+               `Dust(D)/ NonDust(ND)`, data=PM2.5)
+summary(model2)
+
+# diagnostics for linear regression. plot the residuals 
+augment(model2)
+```
+
 
 
 ##### Relationship between PM2.5 from Alphasenors and PM Mass from Harvard Impactor.
