@@ -1,0 +1,435 @@
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+library("readxl")
+library("dplyr")
+library("tidyverse")
+library(psych)
+
+getwd()
+
+data <- read_xlsx("/Users/AB/Desktop/Cyprus-Research-Program/Clean DataLogs for impactors and Alphasense(cor_Dates+ Match Alphasense)_Updated AM 30-10-22  (1).xlsx")
+
+
+View(data)
+
+# Trimming 
+df <- data %>% select(`PM (PM2.5,PM10)`, Average, Median, 
+                     `PM MASS (μg/m3)`, `Impactor Location (Indoor/Outdoor)`,
+                     Flag, `INTERVENTION GROUP`, `Dust(D)/ NonDust(ND)`)
+
+#provisionally ignore subjects with missing values 
+df <- df[which(!is.na(df$Median)),] 
+
+df <- df[which(!is.na(df$Average)),] 
+
+#making PM MASS values numeric 
+df$`PM MASS (μg/m3)` <- as.numeric(df$`PM MASS (μg/m3)`)
+df <- df[which(!is.na(df$`PM MASS (μg/m3)`)),] #removing N/As 
+
+# Create PM2.5 data set. Removing flag 2  
+PM2.5 <- df %>% filter(`PM (PM2.5,PM10)` == "PM2.5", Flag != "2", 
+                       Average != "35.26")
+
+# creating PM2.5 df without outliers 
+boxplot(PM2.5$Average)
+boxplot(PM2.5$`PM MASS (μg/m3)`)
+
+PM2.5_no_outlier <- PM2.5 %>% filter(Average != "35.2582041", 
+                                     `PM MASS (μg/m3)`!= 47.255555) 
+boxplot(PM2.5_no_outlier$Average)
+boxplot(PM2.5_no_outlier$`PM MASS (μg/m3)`)
+
+rename(PM2.5_no_outlier, AveragePM2.5 = Average) #remaining column 
+
+# Create PM10 data set. Removing flag 2  
+PM10 <- df %>% filter(`PM (PM2.5,PM10)` == "PM10", Flag != "2")
+
+# creating PM10 df without outliers 
+boxplot(PM10$Average) 
+boxplot(PM10$`PM MASS (μg/m3)`)
+
+PM10_no_outlier <- PM10 %>% filter(Average < 50, `PM MASS (μg/m3)`!= "175.291046")
+
+boxplot(PM10_no_outlier$Average)
+boxplot(PM10_no_outlier$`PM MASS (μg/m3)`)
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# data visualization
+library("ggplot2")
+library("ggthemes")
+library("ggrepel")
+
+hist1 <- PM2.5_no_outlier %>% 
+  ggplot(aes(`PM MASS (μg/m3)`, ..density..)) + 
+  geom_histogram(binwidth = 1, color="black", fill="navy") +
+  xlab("PM MASS (μg/m3) HI") 
+
+hist2 <- PM2.5_no_outlier %>% 
+  ggplot(aes(log(`PM MASS (μg/m3)`), ..density..)) + 
+  geom_histogram(binwidth = 0.25, color="black", fill="navy") + 
+  xlab("Log of PM MASS (μg/m3) HI") 
+
+hist3 <- PM2.5_no_outlier %>% 
+  ggplot(aes(Average, ..density..)) + 
+  geom_histogram(binwidth = 0.5, color="black", fill="navy") + 
+  xlim(0, 20)
+  xlab("Average PM2.5(μg/m3) Alphasensor") 
+
+hist4 <- PM2.5_no_outlier %>% 
+  ggplot(aes(log(Average), ..density..)) + 
+  geom_histogram(binwidth = 0.25, color="black", fill="navy") + 
+  xlab("Log Average PM2.5(μg/m3) Alphasensor")
+
+hist5 <- PM10_no_outlier %>% 
+  ggplot(aes(Average, ..density..)) + 
+  geom_histogram(binwidth = 5, color="black", fill="navy") + 
+  xlab("Average PM10 (μg/m3) Alphasensor") 
+
+hist6 <- PM10_no_outlier %>% 
+  ggplot(aes(log(Average), ..density..)) + 
+  geom_histogram(binwidth = 0.25, color="black", fill="navy") + 
+  xlab("Log Average PM10 (μg/m3) Alphasensor") 
+
+library("gridExtra")
+grid.arrange(hist1, hist2, hist3, hist4, hist5, hist6, nrow = 3)
+
+```
+
+
+
+
+### Linear Regression Models 
+
+<br>
+<br>
+
+#### Average PM2.5 from Alphasenors predicting PM Mass from Harvard Impactor.
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(broom)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library("gridExtra")
+library(sjPlot)
+
+model1 <- lm(`PM MASS (μg/m3)` ~ Average, data=PM2.5_no_outlier)  
+#PM2.5 # R^2 (coefficient of determination) is the proportion of the variance in the  
+# average that is predicted by PM Mass. In other words, how well does avg. 
+# predict PM Mass? 
+model1
+model2 <- lm(`PM MASS (μg/m3)` ~ log(Average), data=PM2.5_no_outlier)  
+
+tab_model(model1, model2)
+
+p1 <- PM2.5_no_outlier %>% 
+    ggplot(aes(x = Average, y = `PM MASS (μg/m3)`)) + 
+    geom_point(color="navy", size = 3, alpha=0.5) +  
+    geom_smooth(method=lm, se=TRUE, col="black", size=1) +
+    stat_regline_equation(label.x=1, label.y=31) +
+    stat_cor(aes(label=..rr.label..), label.x=1, label.y=29) +
+    ylab("PM Mass (μg/m3)") + 
+    xlab("Alphasense PM2.5 (μg/m3)") +
+    theme_classic() + 
+    theme(legend.position = "none") 
+p1
+
+p2 <-  PM2.5_no_outlier %>% 
+    ggplot(aes(x = log(Average), y = `PM MASS (μg/m3)`)) + 
+    geom_point(color="navy", size = 3, alpha=0.5) +  
+    geom_smooth(method=lm, se=TRUE, col="black", size=1) +
+    stat_regline_equation(label.x=0.2, label.y=20) +
+    stat_cor(aes(label=..rr.label..), label.x=0.2, label.y=17) +
+    ylab("Impactor PM Mass (μg/m3)") + 
+    xlab("Alphasense Log PM2.5 (μg/m3)") +
+    theme_classic() + 
+    theme(legend.position = "none") 
+
+p2
+
+grid.arrange(p1, p2, nrow = 2)
+
+
+```
+<br>
+<br>
+<br>
+
+#### Y = Fitted Alphasense PM2.5 values, X = Actual Alphasense PM2.5 Measurement 
+
+```{r echo=FALSE}
+tab1 <- predict(model2, interval = "confidence")
+
+PM2.5_fit <- bind_cols(tab1, PM2.5_no_outlier)
+
+fitmod1 <- lm(fit ~ Average, data = PM2.5_fit)
+
+tab_model(fitmod1)
+```
+
+<br>
+<br>
+<br>
+
+#### Average PM2.5 from Alphasenors predicting PM Mass from Harvard Impactor adjusting for dust and intervention status. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+# adding covariates
+model3 <- glm(`PM MASS (μg/m3)`~ log(Average) + `INTERVENTION GROUP` + 
+               `Dust(D)/ NonDust(ND)`, data=PM2.5_no_outlier)
+
+# adding interaction term
+model4 <- glm(`PM MASS (μg/m3)`~ log(Average) + `INTERVENTION GROUP` +
+                `Dust(D)/ NonDust(ND)` + `INTERVENTION GROUP` * `Dust(D)/ NonDust(ND)`,
+              data = PM2.5_no_outlier)
+
+tab_model(model3, model4)
+``` 
+
+
+```{r eval=FALSE, include=FALSE}
+library(car) 
+
+#plotting the regression line of adjusted models for PM2.5 
+avPlots(model3, terms=~., intercept = FALSE, layout = NULL, grid = FALSE, 
+        ellipse=FALSE, pt.wts = FALSE, lwd =2)
+
+avPlots(model4, terms=~., intercept = FALSE, layout = NULL, grid = FALSE, 
+        ellipse=FALSE, pt.wts = FALSE, lwd =2)
+```
+
+<br>
+<br>
+<br>
+
+#### Average PM10 from Alphasenors predicting PM Mass from Harvard Impactor.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+model5 <- lm(`PM MASS (μg/m3)` ~ Average, data=PM10_no_outlier)  
+
+model6 <- lm(`PM MASS (μg/m3)` ~ log(Average), data=PM10_no_outlier)  
+
+tab_model(model5, model6)
+
+plot3 <- PM10_no_outlier %>% 
+  ggplot(aes(x = Average, y = `PM MASS (μg/m3)`)) + 
+  geom_point(color="navy", size = 3, alpha=0.5) +
+  geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
+  stat_regline_equation(label.x=2, label.y=53) +
+  stat_cor(aes(label=..rr.label..), label.x=2, label.y=49) +
+  ylab("PM Mass (μg/m3)") + 
+  xlab("Alphasense PM10 (μg/m3)") +
+  theme_classic() + 
+  theme(legend.position = "none") 
+
+plot3
+
+plot4 <- PM10_no_outlier %>% 
+  ggplot(aes(x = log(Average), y = `PM MASS (μg/m3)`)) + 
+  geom_point(color="navy", size = 3, alpha=0.5) +
+  geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
+  stat_regline_equation(label.x=0.5, label.y=35) +
+  stat_cor(aes(label=..rr.label..), label.x=0.5, label.y=29) +
+  ylab("Impactor PM Mass (μg/m3)") + 
+  xlab("Alphasense Log PM10 (μg/m3)") +
+  theme_classic() + 
+  theme(legend.position = "none")
+
+plot4
+
+grid.arrange(plot3, plot4, nrow = 2)
+
+together <- grid.arrange(p2, plot4, nrow = 1)
+together
+# Save the plot as an image (PNG format)
+ggsave("colocation_prescaling.png", together, width = 12, height = 5, units = "in", dpi = 300)
+
+colo_prescale_nolog <- grid.arrange(p1, plot3, nrow = 1)
+colo_prescale_nolog
+
+ggsave("colo_prescle_nolog.png", colo_prescale_nolog, width = 12, height = 5, units = "in", dpi = 300)
+```
+
+### Agreement post-scaling 
+```{r}
+
+data2 <- read_csv("/Users/AB/Desktop/Cyprus-Research-Program/Azariah_data.csv")
+
+# filter intervention variable = no intervention and full intervention
+data3 <- data2 %>% 
+  filter(INTERV == 0 | INTERV == 2) %>% 
+  filter(FLAG == 0) # remove flags an dust days
+unique(data3$INTERV)
+
+# create 0, 1 filter variable 
+data3$filt <- ifelse(data3$INTERV==0, 0, 1)
+unique(data3$filt)
+
+# scaling
+data3$ahour <- data3$Hour + 1 
+
+data3$spm25 <- data3$aPM25 * data3$scale_ratio25      
+data3$lspm25 <- log(data3$spm25)
+
+data3$spm10 <- data3$aPM10 * data3$scale_ratio10      
+data3$lspm10 <- log(data3$spm10)
+
+data3$lipm10 <- log(data3$iPM10)
+data3$lipm25 <- log(data3$iPM25)
+
+data3$lopm10 = log(data3$oPM10)
+data3$lopm25 = log(data3$oPM25)
+
+data3$r25 <- (data3$spm25 / data3$oPM25)
+data3$r10 <- (data3$spm10 / data3$oPM10)
+
+data3$lr25 <- log(data3$r25)
+data3$lr10 <- log(data3$r10)
+
+View(data3)
+
+
+#filtering data for graphs 
+data4 <- data3 %>% filter(spm10<60, spm25<40)
+
+logscaled1 <- data4 %>% 
+  ggplot(aes(x = lspm25, y = lr25)) + 
+  geom_point(color="navy", size = 3, alpha=0.5) +
+  geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
+  stat_regline_equation(label.x=-1.25, label.y=3) +
+  stat_cor(aes(label=..rr.label..), label.x=-1.25, label.y=2.5) +
+  ylab("Log Adjusted PM Mass (μg/m3)") + 
+  xlab("Log Adjusted Alphasense PM25 (μg/m3)") +
+  theme_classic() + 
+  theme(legend.position = "none")
+logscaled1
+
+install.packages("ggtext")
+library(ggtext)
+
+
+logscaled2 <- data4 %>% 
+  ggplot(aes(x = lspm10, y = lr10)) + 
+  geom_point(color="navy", size = 3, alpha=0.5) +
+  geom_smooth(method=lm, se=TRUE, col="black", size=0.5) +
+  stat_regline_equation(label.x=-1.5, label.y=4) +
+  stat_cor(aes(label=..rr.label..), label.x=-1.5, label.y=3.4) +
+  ylab("Log Adjusted PM Mass (μg/m^3)") + 
+  xlab("Log Adjusted Alphasense PM[10] (μg/m^3)") +
+  theme_classic() + 
+  theme(legend.position = "none")
+logscaled2
+
+
+forpub <- grid.arrange(
+  p1, 
+  plot3, 
+  logscaled1, 
+  logscaled2,
+  nrow = 2,
+  bottom = textGrob(
+    "PM Mass refers to Harvard Impactor concentrations",
+  gp = gpar(fontface = 3, fontsize = 9),
+  hjust = 1,
+  x = 1
+  )
+)
+
+
+ggsave("forpub.png",forpub, width = 12, height = 6, units = "in", dpi = 300)
+
+```
+
+
+#### Y = Fitted Alphasense PM10 values, X = Actual Alphasense PM10 Measurement 
+```{r echo=FALSE}
+tab2 <- predict(model6, interval = "confidence")
+
+PM10_fit <- bind_cols(tab2, PM10_no_outlier)
+
+fitmod2 <- lm(fit ~ Average, data = PM10_fit)
+
+tab_model(fitmod2)
+```
+<br>
+<br>
+<br>
+
+##### Average PM10 from Alphasenors and PM Mass from Harvard Impactor. Adjusting for dust and intervention status. 
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+#adding covariates 
+model6 <- glm(`PM MASS (μg/m3)`~ log(Average) + `INTERVENTION GROUP` + 
+               `Dust(D)/ NonDust(ND)`, data=PM10_no_outlier)
+
+# adding interaction term
+model7 <- glm(`PM MASS (μg/m3)`~ log(Average) + `INTERVENTION GROUP` +
+                `Dust(D)/ NonDust(ND)` + `INTERVENTION GROUP` * `Dust(D)/ NonDust(ND)`,
+              data = PM10_no_outlier)
+
+tab_model(model6, model7)
+```
+
+```{r eval=FALSE, include=FALSE}
+#plotting the regression line of adjusted models for PM10
+avPlots(model4, terms=~., intercept = FALSE, layout = NULL, grid = FALSE, 
+        ellipse=FALSE, pt.wts = FALSE, lwd =2)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#### Plotting Observed vs. Predicted Values 
+ggplot(PM2.5_no_outlier, aes(x=predict(model2), 
+           y= (PM2.5_no_outlier$`PM MASS (μg/m3)`))) +
+  geom_point() +
+  geom_abline(intercept=0, slope=1) +
+  labs(x='Predicted Log Average PM2.5 Values', y='Actual Log Average PM2.5 Values', title='Predicted vs. Actual Values')
+
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+#### Particulate Matter Measurements over Time 
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(ggthemes)
+
+df2 <- data %>% select(`PM (PM2.5,PM10)`, Average, Median, 
+                     `PM MASS (μg/m3)`, `Impactor Location (Indoor/Outdoor)`,
+                     Flag, `Sampling time (min) With Correction timestamps`) %>%
+  filter(Flag != "2")
+
+df2 <- df2[which(!is.na(df2$`PM MASS (μg/m3)`)),]   # remove missing values 
+df2 <- df2[which(!is.na(df2$Average)),] 
+df2 <- df2[which(!is.na(df2$Median)),] 
+
+write.csv(df2, "~/Desktop/df2.csv")
+df2 <- read_csv("~/Desktop/df2_edit.csv")
+
+#making PM MASS values numeric 
+df2$`PM MASS (μg/m3)` <- as.numeric(df2$`PM MASS (μg/m3)`)
+
+df2 %>% ggplot(aes(x = `Sampling time (min) With Correction timestamps`, 
+                   `PM MASS (μg/m3)`, y = Average, color = `PM (PM2.5,PM10)`)) + 
+  labs(color = "PM") +
+  stat_smooth(method = loess, se = FALSE) +
+  ylim(0, 40) +
+  ylab("Average Particulate Matter (μg/m3)") +
+  xlab("Sampling Time (minutes)") + 
+  theme_clean()
+```
+
+Calibration curve and predict hourly. 
+Use the new column that Antonis made. 
+After you predict the PM based on the Alphasense.. then you don't need to use the averages.
+house number 
+day 
+time 
+dust 
+intervent
+pred
+

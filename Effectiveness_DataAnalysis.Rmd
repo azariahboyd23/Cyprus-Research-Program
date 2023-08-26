@@ -1,0 +1,633 @@
+---
+title: "CyprusAnalysis_EffectivenessPaper"
+author: "Azariah Boyd"
+date: "6/27/2023"
+output: html_document
+---
+```{r}
+library(readr)
+library(dplyr)
+
+# read in data set 
+cyprus <- read_csv("/Users/AB/Desktop/Cyprus-Research-Program/Azariah_data.csv")
+unique(cyprus$Homeid) #16 homes in total 
+
+n_con <- cyprus %>% 
+  filter(INTERV == 0)
+unique(n_con$Homeid) # 4 control homes 
+
+n_interv2 <- cyprus %>% 
+  filter(INTERV ==2)
+unique(n_interv2$Homeid) # 7 interv2 homes 
+
+n_interv1 <- cyprus %>% 
+  filter(INTERV ==1) 
+unique(n_interv1$Homeid) # 6 interv1 homes 
+
+# filter intervention variable = no intervention and full intervention
+unique(cyprus$INTERV) # the intervention has 0, 1, 2 
+cyprus1 <- cyprus %>% 
+  filter(INTERV == 0 | INTERV == 2) %>% 
+  filter(FLAG == 0) # remove flags 
+unique(cyprus1$INTERV)
+
+unique(cyprus1$Homeid) #11 homes in total after removing flags
+
+n_con <- cyprus1 %>% 
+  filter(INTERV == 0)
+unique(n_con$Homeid) # 4 control homes after removing flags
+
+n_interv2 <- cyprus1 %>% 
+  filter(INTERV ==2)
+unique(n_interv2$Homeid) # 7 interv2 homes after removing flags
+
+n_interv1 <- cyprus1 %>% 
+  filter(INTERV ==1) 
+unique(n_interv1$Homeid) # 0 interv1 homes after removing flags
+
+
+# create 0, 1 filter variable 
+cyprus1$filt <- ifelse(cyprus1$INTERV==0, 0, 1)
+unique(cyprus1$filt)
+
+```
+
+### Scaling 
+```{r}
+
+# scaling
+cyprus1$ahour <- cyprus1$Hour + 1 
+
+cyprus1$spm25 <- cyprus1$aPM25 * cyprus1$scale_ratio25      
+cyprus1$lspm25 <- log(cyprus1$spm25)
+
+cyprus1$spm10 <- cyprus1$aPM10 * cyprus1$scale_ratio10      
+cyprus1$lspm10 <- log(cyprus1$spm10)
+
+cyprus1$lipm10 <- log(cyprus1$iPM10)
+cyprus1$lipm25 <- log(cyprus1$iPM25)
+
+cyprus1$lopm10 = log(cyprus1$oPM10)
+cyprus1$lopm25 = log(cyprus1$oPM25)
+
+cyprus1$r25 <- (cyprus1$spm25 / cyprus1$oPM25)
+cyprus1$r10 <- (cyprus1$spm10 / cyprus1$oPM10)
+
+cyprus1$lr25 <- log(cyprus1$r25)
+cyprus1$lr10 <- log(cyprus1$r10)
+```
+
+```{r}
+cyprus_re <- subset(cyprus1, spm25 < 40 & spm10 < 60)
+cyprus_re1 <- cyprus_re %>% filter(MONTH == 10 | MONTH == 11 | MONTH ==12)
+#794 october
+#1523-794 November= 729
+# 845 December 
+model1 <- glm(lspm25 ~ filt, data = cyprus_re1)
+model2 <- glm(lspm10 ~ filt, data = cyprus_re1)
+
+tab_model(model1, model2)
+
+unique(cyprus_re1$MONTH)
+unique(cyprus_re1$FLAG)
+unique(cyprus_re1$dust)
+summary(cyprus_re1$DATE)
+unique(cyprus_re1$YEAR)
+
+```
+
+
+## Descriptive Stats ~ Creating Table 1
+```{r}
+
+# filter intervention variable = no intervention and full intervention
+# unique(cyprus$INTERV) 
+# cyprus1 <- cyprus %>% 
+  # filter(INTERV == 0 | INTERV == 2)
+# unique(cyprus1$INTERV) 
+
+# remove dust events, flags
+cyprus1_summary <- cyprus1 %>% 
+  subset(spm25 < 40 & spm10 < 60) %>%
+  filter(FLAG == 0) %>% 
+  filter(MONTH == 10 | MONTH == 11 | MONTH ==12)
+
+unique(cyprus1_summary$INTERV)
+unique(cyprus1_summary$FLAG)
+unique(cyprus1_summary$dust)
+unique(cyprus1_summary$MONTH)
+summary(cyprus1_summary$DATE)
+
+# Calculate the summary statistics PM25 in Oct, Nov, Dec
+summary_stats1 <- cyprus1_summary %>% 
+  group_by(MONTH, INTERV) %>% 
+  summarize(mean = mean(PM25),
+            median = median(PM25),
+            lower_limit = quantile(PM25, 0.025),
+            upper_limit = quantile(PM25, 0.975),
+            sd = sd(PM25), .groups = "keep") 
+summary_stats1
+# Convert the summary statistics to a table
+summary_stats1 <- as.data.frame(t(summary_stats1))
+summary_stats1
+
+# Rename the table columns
+colnames(summary_stats1) <- c("Control", "Air Filtration", "Control", "Air Filtration",
+                              "Control", "Air Filtration")
+rownames(summary_stats1) <- c("month", "interv", "Mean", "Median", "Upper Limit", "Lower Limit",
+                              "SD")
+# Print the summary table
+summary_stats1
+
+# Calculate the summary statistics PM10 in Oct, Nov, Dec
+summary_stats2 <- cyprus1_summary %>% 
+  group_by(MONTH, INTERV) %>% 
+  summarize(mean = mean(PM10),
+            median = median(PM10),
+            lower_limit = quantile(PM10, 0.025),
+            upper_limit = quantile(PM10, 0.975),
+            sd = sd(PM10), .groups = "keep") 
+summary_stats2
+# Convert the summary statistics to a table
+summary_stats2 <- as.data.frame(t(summary_stats2))
+summary_stats2
+
+# Rename the table columns
+colnames(summary_stats2) <- c("Control", "Air Filtration", "Control", "Air Filtration",
+                              "Control", "Air Filtration")
+rownames(summary_stats2) <- c("month", "interv", "Mean", "Median", "Upper Limit", "Lower Limit",
+                              "SD")
+
+# Print the summary table
+summary_stats2
+
+oct <- cyprus1_summary %>%  # total dates in OCT  
+  filter(MONTH == 10) 
+
+nov <- cyprus1_summary %>%  # total dates in NOV 
+  filter(MONTH == 11) 
+
+dec <- cyprus1_summary %>%  # total dates in DEC 
+  filter(MONTH ==12)
+
+cyprus1_summary %>%  # controls by month
+  select(MONTH, DATE, PM25, PM10, INTERV) %>%
+  filter(MONTH == 12, INTERV == 0) %>%
+  summary(DATE)
+
+cyprus1_summary %>%  # interv=2 by month
+  select(MONTH, DATE, PM25, PM10, INTERV) %>%
+  filter(MONTH == 12, INTERV == 2) %>%
+  summary(DATE)
+
+n_analytic_interv2 <- cyprus1_summary %>%  # total interv=2 within analytic sample (oct, nov, dec)
+  filter(INTERV ==2)
+  
+n_analytic_con <- cyprus1_summary %>%  # total controls within analytic sample (oct, nov, dec)
+  filter(INTERV ==0)
+
+1513+866
+
+817+698
+
+unique(cyprus1_summary$YEAR)
+unique(cyprus1_summary$MONTH)
+```
+
+### Oct PM2.5 Model 
+```{r} 
+# Filter for October PM25, no outliers
+cyprus1_filtered <- subset(cyprus1, spm25 < 40 & MONTH == 10)
+
+# Create a new variable "oct" to indicate which time interval each observation belongs to
+cyprus1_filtered$oct <- cut(cyprus1_filtered$ahour,
+                            breaks = c(0, 6, 12, 18, Inf),
+                            labels = c("interval1", "interval2", "interval3", "interval4"),
+                            include.lowest = TRUE)
+
+# Run the glm model for each time interval in Oct
+models <- list()
+for (interval in unique(cyprus1_filtered$oct)) {
+  model <- glm(lspm25 ~ filt, data = filter(cyprus1_filtered, oct == interval))
+  models[[interval]] <- model
+}
+models
+
+# Add confidence intervals and p-values to the models
+for (interval in unique(cyprus1_filtered$oct)) {
+  model <- models[[interval]]
+  ci <- confint(model)  # Compute confidence intervals
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]  # Extract p-values
+  model$coefficients <- cbind(model$coefficients, ci, p_values)  # Add confidence intervals and p-values to coefficients
+  models[[interval]] <- model  # Update the model in the list
+}
+
+# Print the models with confidence intervals and p-values
+models
+
+library(knitr)
+
+# Create an empty table
+result_table <- matrix(nrow = 0, ncol = 6)
+colnames(result_table) <- c("Time Interval", "Coefficient", "Estimate", "CI Lower", "CI Upper", "p-value")
+
+# Populate the table with model results
+for (interval in unique(cyprus1_filtered$oct)) {
+  model <- models[[interval]]
+  coef_names <- rownames(model$coefficients)
+  coef_estimates <- coef(model)
+  ci <- confint(model)
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
+
+  # Handle cases where confidence intervals are unavailable (e.g., zero degrees of freedom)
+  if (is.null(ci) || any(is.na(ci))) {
+    ci_lower <- rep(NA, length(coef_names))
+    ci_upper <- rep(NA, length(coef_names))
+  } else {
+    ci_lower <- ci[, 1]
+    ci_upper <- ci[, 2]
+  }
+
+  # Format confidence intervals
+  ci_lower <- ifelse(is.na(ci_lower), "NA", format(ci_lower, nsmall = 3))
+  ci_upper <- ifelse(is.na(ci_upper), "NA", format(ci_upper, nsmall = 3))
+
+  for (i in seq_along(coef_names)) {
+    result_table <- rbind(result_table, c(interval, coef_names[i], coef_estimates[i], ci_lower[i], ci_upper[i], p_values[i]))
+  }
+}
+
+# Convert the table to a data frame
+result_df <- as.data.frame(result_table, stringsAsFactors = FALSE)
+
+# Print the table
+kable(result_df, align = "c")
+
+```
+
+### PM25 November 
+```{r}
+# Filter for November PM25, no outliers
+cyprus1_filtered <- subset(cyprus1, spm25 < 40 & MONTH == 11)
+
+# Create a new variable "nov" to indicate which time interval each observation belongs to
+cyprus1_filtered$nov <- cut(cyprus1_filtered$ahour,
+                            breaks = c(0, 6, 12, 18, Inf),
+                            labels = c("interval1", "interval2", "interval3", "interval4"),
+                            include.lowest = TRUE)
+
+# Run the glm model for each time interval in November
+models <- list()
+for (interval in unique(cyprus1_filtered$nov)) {
+  model <- glm(lspm25 ~ filt, data = filter(cyprus1_filtered, nov == interval))
+  models[[interval]] <- model
+}
+models
+
+# Add confidence intervals and p-values to the models
+for (interval in unique(cyprus1_filtered$nov)) {
+  model <- models[[interval]]
+  ci <- confint(model)  # Compute confidence intervals
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]  # Extract p-values
+  model$coefficients <- cbind(model$coefficients, ci, p_values)  # Add confidence intervals and p-values to coefficients
+  models[[interval]] <- model  # Update the model in the list
+}
+
+# Print the models with confidence intervals and p-values
+models
+
+library(knitr)
+
+# Create an empty table
+result_table <- matrix(nrow = 0, ncol = 7)
+colnames(result_table) <- c("Month", "Time Interval", "Coefficient", "Estimate", "CI Lower", "CI Upper", "p-value")
+
+# Populate the table with model results
+for (interval in unique(cyprus1_filtered$nov)) {
+  model <- models[[interval]]
+  coef_names <- rownames(model$coefficients)
+  coef_estimates <- coef(model)
+  ci <- confint.default(model)  # Use confint.default() instead of confint()
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
+
+  # Handle cases where confidence intervals are unavailable (e.g., zero degrees of freedom)
+  if (is.null(ci) || any(is.na(ci))) {
+    ci_lower <- rep(NA, length(coef_names))
+    ci_upper <- rep(NA, length(coef_names))
+  } else {
+    ci_lower <- ci[, 1]
+    ci_upper <- ci[, 2]
+  }
+
+  # Format confidence intervals
+  ci_lower <- ifelse(is.na(ci_lower), "NA", format(ci_lower, nsmall = 3))
+  ci_upper <- ifelse(is.na(ci_upper), "NA", format(ci_upper, nsmall = 3))
+
+  for (i in seq_along(coef_names)) {
+    result_table <- rbind(result_table, c("November", interval, coef_names[i], coef_estimates[i], ci_lower[i], ci_upper[i], p_values[i]))
+  }
+}
+
+# Convert the table to a data frame
+result_df <- as.data.frame(result_table, stringsAsFactors = FALSE)
+
+# Print the table
+kable(result_df, align = "c")
+
+
+```
+
+### Dec PM2.5 Model
+```{r}
+# Filter for December PM25, no outliers
+cyprus1_filtered <- subset(cyprus1, spm25 < 40 & MONTH == 12)
+
+# Create a new variable "dec" to indicate which time interval each observation belongs to
+cyprus1_filtered$dec <- cut(cyprus1_filtered$ahour,
+                            breaks = c(0, 6, 12, 18, Inf),
+                            labels = c("interval1", "interval2", "interval3", "interval4"),
+                            include.lowest = TRUE)
+
+# Run the glm model for each time interval in December
+models <- list()
+for (interval in unique(cyprus1_filtered$dec)) {
+  model <- glm(lspm25 ~ filt, data = filter(cyprus1_filtered, dec == interval))
+  models[[interval]] <- model
+}
+models
+
+# Add confidence intervals and p-values to the models
+for (interval in unique(cyprus1_filtered$dec)) {
+  model <- models[[interval]]
+  ci <- confint(model)  # Compute confidence intervals
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]  # Extract p-values
+  model$coefficients <- cbind(model$coefficients, ci, p_values)  # Add confidence intervals and p-values to coefficients
+  models[[interval]] <- model  # Update the model in the list
+}
+
+# Print the models with confidence intervals and p-values
+models
+
+library(knitr)
+
+# Create an empty table
+result_table <- matrix(nrow = 0, ncol = 7)
+colnames(result_table) <- c("Month", "Time Interval", "Coefficient", "Estimate", "CI Lower", "CI Upper", "p-value")
+
+# Populate the table with model results
+for (interval in unique(cyprus1_filtered$dec)) {
+  model <- models[[interval]]
+  coef_names <- rownames(model$coefficients)
+  coef_estimates <- coef(model)
+  ci <- confint.default(model)  # Use confint.default() instead of confint()
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
+
+  # Handle cases where confidence intervals are unavailable (e.g., zero degrees of freedom)
+  if (is.null(ci) || any(is.na(ci))) {
+    ci_lower <- rep(NA, length(coef_names))
+    ci_upper <- rep(NA, length(coef_names))
+  } else {
+    ci_lower <- ci[, 1]
+    ci_upper <- ci[, 2]
+  }
+
+  # Format confidence intervals
+  ci_lower <- ifelse(is.na(ci_lower), "NA", format(ci_lower, nsmall = 3))
+  ci_upper <- ifelse(is.na(ci_upper), "NA", format(ci_upper, nsmall = 3))
+
+  for (i in seq_along(coef_names)) {
+    result_table <- rbind(result_table, c("December", interval, coef_names[i], coef_estimates[i], ci_lower[i], ci_upper[i], p_values[i]))
+  }
+}
+
+# Convert the table to a data frame
+result_df <- as.data.frame(result_table, stringsAsFactors = FALSE)
+
+# Print the table
+kable(result_df, align = "c")
+
+```
+
+# PM 10 October 
+```{r}
+
+# Filter for October PM25, no outliers
+cyprus1_filtered <- subset(cyprus1, spm10 < 60 & MONTH == 10)
+
+# Create a new variable "oct" to indicate which time interval each observation belongs to
+cyprus1_filtered$oct <- cut(cyprus1_filtered$ahour,
+                            breaks = c(0, 6, 12, 18, Inf),
+                            labels = c("interval1", "interval2", "interval3", "interval4"),
+                            include.lowest = TRUE)
+
+# Run the glm model for each time interval in Oct
+models <- list()
+for (interval in unique(cyprus1_filtered$oct)) {
+  model <- glm(lspm10 ~ filt, data = filter(cyprus1_filtered, oct == interval))
+  models[[interval]] <- model
+}
+models
+
+# Add confidence intervals and p-values to the models
+for (interval in unique(cyprus1_filtered$oct)) {
+  model <- models[[interval]]
+  ci <- confint(model)  # Compute confidence intervals
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]  # Extract p-values
+  model$coefficients <- cbind(model$coefficients, ci, p_values)  # Add confidence intervals and p-values to coefficients
+  models[[interval]] <- model  # Update the model in the list
+}
+
+# Print the models with confidence intervals and p-values
+models
+
+library(knitr)
+
+# Create an empty table
+result_table <- matrix(nrow = 0, ncol = 6)
+colnames(result_table) <- c("Time Interval", "Coefficient", "Estimate", "CI Lower", "CI Upper", "p-value")
+
+# Populate the table with model results
+for (interval in unique(cyprus1_filtered$oct)) {
+  model <- models[[interval]]
+  coef_names <- rownames(model$coefficients)
+  coef_estimates <- coef(model)
+  ci <- confint(model)
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
+
+  # Handle cases where confidence intervals are unavailable (e.g., zero degrees of freedom)
+  if (is.null(ci) || any(is.na(ci))) {
+    ci_lower <- rep(NA, length(coef_names))
+    ci_upper <- rep(NA, length(coef_names))
+  } else {
+    ci_lower <- ci[, 1]
+    ci_upper <- ci[, 2]
+  }
+
+  # Format confidence intervals
+  ci_lower <- ifelse(is.na(ci_lower), "NA", format(ci_lower, nsmall = 3))
+  ci_upper <- ifelse(is.na(ci_upper), "NA", format(ci_upper, nsmall = 3))
+
+  for (i in seq_along(coef_names)) {
+    result_table <- rbind(result_table, c(interval, coef_names[i], coef_estimates[i], ci_lower[i], ci_upper[i], p_values[i]))
+  }
+}
+
+# Convert the table to a data frame
+result_df <- as.data.frame(result_table, stringsAsFactors = FALSE)
+
+# Print the table
+kable(result_df, align = "c")
+
+```
+
+### PM10 November 
+```{r}
+# Filter for November PM10, no outliers
+cyprus1_filtered <- subset(cyprus1, spm10 < 60 & MONTH == 11)
+
+# Create a new variable "nov" to indicate which time interval each observation belongs to
+cyprus1_filtered$nov <- cut(cyprus1_filtered$ahour,
+                            breaks = c(0, 6, 12, 18, Inf),
+                            labels = c("interval1", "interval2", "interval3", "interval4"),
+                            include.lowest = TRUE)
+
+# Run the glm model for each time interval in November
+models <- list()
+for (interval in unique(cyprus1_filtered$nov)) {
+  model <- glm(lspm10 ~ filt, data = filter(cyprus1_filtered, nov == interval))
+  models[[interval]] <- model
+}
+models
+
+# Add confidence intervals and p-values to the models
+for (interval in unique(cyprus1_filtered$nov)) {
+  model <- models[[interval]]
+  ci <- confint(model)  # Compute confidence intervals
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]  # Extract p-values
+  model$coefficients <- cbind(model$coefficients, ci, p_values)  # Add confidence intervals and p-values to coefficients
+  models[[interval]] <- model  # Update the model in the list
+}
+
+# Print the models with confidence intervals and p-values
+models
+
+library(knitr)
+
+# Create an empty table
+result_table <- matrix(nrow = 0, ncol = 7)
+colnames(result_table) <- c("Month", "Time Interval", "Coefficient", "Estimate", "CI Lower", "CI Upper", "p-value")
+
+# Populate the table with model results
+for (interval in unique(cyprus1_filtered$nov)) {
+  model <- models[[interval]]
+  coef_names <- rownames(model$coefficients)
+  coef_estimates <- coef(model)
+  ci <- confint.default(model)  # Use confint.default() instead of confint()
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
+
+  # Handle cases where confidence intervals are unavailable (e.g., zero degrees of freedom)
+  if (is.null(ci) || any(is.na(ci))) {
+    ci_lower <- rep(NA, length(coef_names))
+    ci_upper <- rep(NA, length(coef_names))
+  } else {
+    ci_lower <- ci[, 1]
+    ci_upper <- ci[, 2]
+  }
+
+  # Format confidence intervals
+  ci_lower <- ifelse(is.na(ci_lower), "NA", format(ci_lower, nsmall = 3))
+  ci_upper <- ifelse(is.na(ci_upper), "NA", format(ci_upper, nsmall = 3))
+
+  for (i in seq_along(coef_names)) {
+    result_table <- rbind(result_table, c("November", interval, coef_names[i], coef_estimates[i], ci_lower[i], ci_upper[i], p_values[i]))
+  }
+}
+
+# Convert the table to a data frame
+result_df <- as.data.frame(result_table, stringsAsFactors = FALSE)
+
+# Print the table
+kable(result_df, align = "c")
+
+```
+# PM 10 December 
+```{r}
+
+# Filter for December PM25, no outliers
+cyprus1_filtered <- subset(cyprus1, spm10 < 60 & MONTH == 12)
+
+# Create a new variable "dec" to indicate which time interval each observation belongs to
+cyprus1_filtered$dec <- cut(cyprus1_filtered$ahour,
+                            breaks = c(0, 6, 12, 18, Inf),
+                            labels = c("interval1", "interval2", "interval3", "interval4"),
+                            include.lowest = TRUE)
+
+# Run the glm model for each time interval in December
+models <- list()
+for (interval in unique(cyprus1_filtered$dec)) {
+  model <- glm(lspm10 ~ filt, data = filter(cyprus1_filtered, dec == interval))
+  models[[interval]] <- model
+}
+models
+
+# Add confidence intervals and p-values to the models
+for (interval in unique(cyprus1_filtered$dec)) {
+  model <- models[[interval]]
+  ci <- confint(model)  # Compute confidence intervals
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]  # Extract p-values
+  model$coefficients <- cbind(model$coefficients, ci, p_values)  # Add confidence intervals and p-values to coefficients
+  models[[interval]] <- model  # Update the model in the list
+}
+
+# Print the models with confidence intervals and p-values
+models
+
+library(knitr)
+
+# Create an empty table
+result_table <- matrix(nrow = 0, ncol = 7)
+colnames(result_table) <- c("Month", "Time Interval", "Coefficient", "Estimate", "CI Lower", "CI Upper", "p-value")
+
+# Populate the table with model results
+for (interval in unique(cyprus1_filtered$dec)) {
+  model <- models[[interval]]
+  coef_names <- rownames(model$coefficients)
+  coef_estimates <- coef(model)
+  ci <- confint.default(model)  # Use confint.default() instead of confint()
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
+
+  # Handle cases where confidence intervals are unavailable (e.g., zero degrees of freedom)
+  if (is.null(ci) || any(is.na(ci))) {
+    ci_lower <- rep(NA, length(coef_names))
+    ci_upper <- rep(NA, length(coef_names))
+  } else {
+    ci_lower <- ci[, 1]
+    ci_upper <- ci[, 2]
+  }
+
+  # Format confidence intervals
+  ci_lower <- ifelse(is.na(ci_lower), "NA", format(ci_lower, nsmall = 3))
+  ci_upper <- ifelse(is.na(ci_upper), "NA", format(ci_upper, nsmall = 3))
+
+  for (i in seq_along(coef_names)) {
+    result_table <- rbind(result_table, c("December", interval, coef_names[i], coef_estimates[i], ci_lower[i], ci_upper[i], p_values[i]))
+  }
+}
+
+# Convert the table to a data frame
+result_df <- as.data.frame(result_table, stringsAsFactors = FALSE)
+
+# Print the table
+kable(result_df, align = "c")
+
+
+```
+
+
+
+
+
+
+
+
+
